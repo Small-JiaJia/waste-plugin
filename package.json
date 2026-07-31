@@ -1,0 +1,15 @@
+{
+  "name": "waste-plugin",
+  "version": "0.0.1",
+  "author": "JiaDouDou",
+  "description": "Yunzai-Bot的小型插件，提供一些小玩具",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.8.4",
+    "crypto": "*",
+    "lodash": "*",
+    "moment": "*",
+    "path": "*",
+    "sharp": "*"
+    }
+}
