@@ -34,7 +34,7 @@ export class abyssVersion extends plugin {
     })
 
     // 本地图片根目录
-    this.imgRoot = path.join(process.cwd(), 'plugins', 'waste-plugin', 'resources', 'Version')
+    this.imgRoot = path.join(process.cwd(), 'plugins', 'waste-plugin', 'resources', 'genshin')
     // 不存在则自动创建文件夹
     if (!fs.existsSync(this.imgRoot)) {
       fs.mkdirSync(this.imgRoot, { recursive: true })
