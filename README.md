@@ -1,7 +1,7 @@
 # guess-plugin
 
 ### 介绍
-- Yunzai-Bot的小型插件，提供一些小玩具。
+- Miao-Yunzai的小型插件，收集一些自用的小玩具。
 
 安装
 推荐使用git进行安装，以方便后续升级。在BOT根目录夹打开终端，运行
@@ -11,6 +11,14 @@
 git clone --depth=1 https://github.com/Small-JiaJia/waste-plugin.git plugins/waste-plugin.git
 pnpm install -P
 ```
+### 功能一览列表
+
+|指令|说明|
+|-----|-----|
+|1+1|=2|
+|#抽签/#求签/#御神签|模仿鸣神大社抽签|
+|#6.6深渊/#6.6剧诗/#6.6幽境 |原神各版本三路模式资源|
+
 
 ### 更新插件
 没有内置更新功能，更新请手动拉取本项目
@@ -22,7 +30,7 @@ pnpm install -P
 | 计算器| 来自[suiyue](https://gitee.com/Acceleratorsky/suiyue)| 
 | #求签| 来自[l-plugin](https://github.com/liuly0322/l-plugin)| 
 | abyssVersion.js | 来自[mora-plugin](https://gitcode.com/jiuyixian/mora-plugin)| 
-| 原神各版本三路模式资源 | 来自[B站热心用户](https://www.bilibili.com/)| 
+| 原神各版本三路模式资源 | 来自[B站妮可少女HomDGCat](https://space.bilibili.com/3537104994831140)| 
 
 ### Ciallo～(∠・ω< )⌒☆
 * 如果你觉得本插件还行，不妨请留下一个免费的star吧，你的支持是我们前进的最大动力
