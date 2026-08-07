@@ -1,4 +1,4 @@
-# guess-plugin
+# waste-plugin
 
 ### 介绍
 - Miao-Yunzai的小型插件，收集一些自用的小玩具。
