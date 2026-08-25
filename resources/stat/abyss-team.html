@@ -1,0 +1,69 @@
+{{extend defaultLayout}}
+
+{{block 'css'}}
+<link rel="stylesheet" type="text/css" href="{{_res_path}}/stat/common.css?v=1.0"/>
+<link rel="stylesheet" type="text/css" href="{{_res_path}}/stat/abyss-team.css?v=1.0"/>
+{{/block}}
+
+{{block 'main'}}
+<div class="info_box">
+  <div class="head-box type{{bgType}}">
+    <div class="title">深渊配队建议</div>
+    <div class="genshin-logo"></div>
+    {{if version || lastUpdate}}
+    <div class="version-info">
+      {{if version}}版本 {{version}}{{/if}}
+      {{if version && lastUpdate}} · {{/if}}
+      {{if lastUpdate}}更新于 {{lastUpdate}}{{/if}}
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="cont">
+    <div class="cont-title">配队说明</div>
+    <div class="cont-body">
+      <ul class="cont-msg">
+        <li>数据来自<strong>提瓦特小助手</strong>，为其用户自主上传的深渊挑战记录统计</li>
+        <li>已把上半 / 下半的高频半队两两拼成完整双队，按出场热度结合<strong>你的练度</strong>排序</li>
+        <li>灰显角色代表你<strong>暂未持有</strong>，配队<strong>仅供参考</strong>，可按练度灵活调整</li>
+        <li>月初深渊刚刷新时样本较少，几天后数据更稳定</li>
+      </ul>
+    </div>
+  </div>
+
+  {{each teams floorTeam floor}}
+  <div class="cont">
+
+    <div class="cont-table">
+      <div class="tr thead">
+        <div>{{floor}}层</div>
+        <div>上半</div>
+        <div>下半</div>
+      </div>
+      {{each floorTeam team idx}}
+      <div class="tr">
+        <div class="title">配队{{idx+1}}<span class="team-count">{{team.count}}次记录</span></div>
+        {{each team teamData key}}
+        {{if key === "up" || key === "down"}}
+        <div>
+          <div class="card-list">
+            {{each teamData.teamArr id}}
+            <div
+                class="card star{{avatars[id].star == 4 ? 4:5}} {{ avatars[id].level*1 === 0 ? 'no-character':'has-character'}}">
+              <img class="role" src="{{_res_path}}{{avatars[id].face}}"/>
+              <span class="cons cons-{{avatars[id].cons}} for-has">{{avatars[id].cons}}</span>
+              <span class="lvl for-has">Lv.{{avatars[id].level}}</span>
+              <span class="for-no no-label">暂无</span>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+        {{/each}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/each}}
+</div>
+{{/block}}

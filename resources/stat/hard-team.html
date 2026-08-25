@@ -1,0 +1,66 @@
+{{extend defaultLayout}}
+
+{{block 'css'}}
+<link rel="stylesheet" type="text/css" href="{{_res_path}}/stat/common.css?v=1.0"/>
+<link rel="stylesheet" type="text/css" href="{{_res_path}}/stat/hard-team.css?v=1.0"/>
+{{/block}}
+
+{{block 'main'}}
+<div class="info_box">
+  <div class="head-box type{{bgType}}">
+    <div class="title">幽境危战配队建议</div>
+    <div class="genshin-logo"></div>
+    {{if version || displayTime}}
+    <div class="version-info">
+      {{if version}}版本 {{version}}{{/if}}
+      {{if version && displayTime}} · {{/if}}
+      {{if displayTime}}更新于 {{displayTime}}{{/if}}
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="cont">
+    <div class="cont-title">配队说明</div>
+    <div class="cont-body">
+      <ul class="cont-msg">
+        <li>数据来自<strong>提瓦特小助手</strong>，为其用户自主上传的幽境危战挑战记录统计</li>
+        <li>危战分<strong>上 / 中 / 下</strong>三关强敌，各关列出高频完整 4 人队，按出场热度结合<strong>你的练度</strong>排序</li>
+        <li>灰显角色代表你<strong>暂未持有</strong>，配队<strong>仅供参考</strong>，可按练度灵活调整</li>
+      </ul>
+    </div>
+  </div>
+
+  {{each teams teamData halfKey}}
+  <div class="cont">
+    <div class="cont-table">
+      <div class="tr thead">
+        <div class="half-label {{halfKey}}">
+          {{halfKey === 'up' ? '上半区' : (halfKey === 'mid' ? '中半区' : '下半区')}}
+        </div>
+        <div>推荐队伍</div>
+      </div>
+      {{each teamData team idx}}
+      <div class="tr">
+        <div class="title">
+          <span class="rank-no">配队{{idx+1}}</span>
+          <span class="team-count">{{team.count}}次记录</span>
+        </div>
+        <div>
+          <div class="card-list">
+            {{each team.ids id}}
+            <div class="card star{{avatars[id].star == 4 ? 4:5}} {{ avatars[id].level*1 === 0 ? 'no-character':'has-character'}}">
+              <img class="role" src="{{_res_path}}{{avatars[id].face}}"/>
+              <span class="cons cons-{{avatars[id].cons}} for-has">{{avatars[id].cons}}</span>
+              <span class="lvl for-has">Lv.{{avatars[id].level}}</span>
+              <span class="for-no no-label">暂无</span>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/each}}
+</div>
+{{/block}}
