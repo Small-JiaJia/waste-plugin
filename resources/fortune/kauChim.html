@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{_res_path}}fortune/kauChim.css">
+</head>
+<body>
+  <main id="container">
+    <header class="masthead">
+      <div class="shrine-mark" aria-hidden="true">
+        <span class="torii-roof"></span>
+        <span class="torii-roof-shadow"></span>
+        <span class="torii-crossbar"></span>
+        <span class="torii-post torii-post-left"></span>
+        <span class="torii-post torii-post-right"></span>
+        <span class="torii-shimenawa"></span>
+        <span class="torii-shide torii-shide-left"></span>
+        <span class="torii-shide torii-shide-right"></span>
+        <span class="sakura-petal sakura-petal-left"></span>
+        <span class="sakura-petal sakura-petal-right"></span>
+      </div>
+
+      <div class="shrine-title">
+        <span class="eyebrow">稻妻 · 鸣神大社</span>
+        <h1>御神签</h1>
+        <span class="subheading">神樱树下，今日签运</span>
+      </div>
+
+      <div class="shrine-stamp" aria-hidden="true">
+        <img src="{{_res_path}}fortune/yae-fox-emblem.png" alt="">
+      </div>
+    </header>
+
+    <section class="fortune-paper {{fortune.tone}}">
+      <div class="paper-heading">
+        <span class="paper-heading-title">今日签文</span>
+        <div class="date-box">
+          <span class="date-label">祈愿日期</span>
+          <strong>{{date}}</strong>
+        </div>
+      </div>
+
+      <div class="fortune-layout">
+        <div class="fortune-content">
+          <div class="fortune-heading">
+          <div class="rank">{{fortune.rank}}</div>
+            <span class="heading-rule" aria-hidden="true"></span>
+            <div class="fortune-title">{{fortune.title}}</div>
+          </div>
+          <p class="fortune-description">{{fortune.description}}</p>
+        </div>
+      </div>
+
+      {{if fortune.item}}
+      <aside class="lucky-item">
+        <div class="item-heading">签中吉物</div>
+        <p>{{fortune.item}}</p>
+      </aside>
+      {{/if}}
+    </section>
+
+    <footer class="footer">
+      <span>稻妻 · 鸣神大社祈愿</span>
+      <span>一人一签 · 明日再来</span>
+    </footer>
+  </main>
+</body>
+</html>

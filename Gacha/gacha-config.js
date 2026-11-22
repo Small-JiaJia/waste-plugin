@@ -66,24 +66,17 @@ export function setSetting (groupId, patch) {
   save()
 }
 
-/**
- * 检查抽数是否超限
- * @param {string|number} groupId
- * @param {'role'|'weapon'|'permanent'} type
- * @param {number} currentCount 今日已抽数
- * @param {number} addCount 本次计划抽数（总抽数，非十连次数）
- * @returns {{ ok: boolean, limit: number, remain: number }}
- */
-export function checkDailyLimit (groupId, type, currentCount, addCount) {
+/** 获取指定卡池的每日抽数上限；0 表示不限 */
+export function getDailyLimit (groupId, type) {
   const s = getSetting(groupId)
-  let limit = 0
+  let limit
   if (type === 'role') limit = s.pinkBall
   else if (type === 'weapon') limit = s.weaponBall
   else if (type === 'permanent') limit = s.blueBall
+  else return 0
 
-  if (limit === 0) return { ok: true, limit: 0, remain: Infinity }
-  const remain = limit - currentCount
-  return { ok: currentCount + addCount <= limit, limit, remain }
+  const value = Number(limit)
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
 }
 
 /** 获取撤回时间（秒） */

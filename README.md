@@ -10,7 +10,7 @@
 
 // 使用github
 ```
-git clone --depth=1 https://github.com/Small-JiaJia/waste-plugin.git plugins/waste-plugin.git
+git clone --depth=1 https://github.com/Small-JiaJia/waste-plugin.git plugins/waste-plugin
 pnpm install -P
 ```
 ### 功能一览列表

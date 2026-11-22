@@ -1,0 +1,207 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 790px;
+  margin: 0;
+  background: #edf4f8;
+}
+
+body {
+  color: #293f57;
+  font-family: "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+
+#container {
+  width: 790px;
+  padding: 28px 32px 24px;
+}
+
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 98px;
+  padding: 0 5px 17px;
+  border-bottom: 1px solid #d0dfe9;
+}
+
+.eyebrow,
+.date-box > span,
+.arcana-label,
+.reading-label {
+  color: #778a9a;
+}
+
+.eyebrow {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+}
+
+.title-group h1 {
+  margin: 5px 0 0;
+  color: #293f57;
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.title-note {
+  display: block;
+  margin-top: 3px;
+  color: #8c7b6e;
+  font-size: 10px;
+}
+
+.date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.date-box > span {
+  font-size: 10px;
+}
+
+.date-box strong {
+  color: #53728d;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.oracle-card {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid #d5e0e8;
+  background: #fffefa;
+}
+
+.card-art {
+  display: flex;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  min-height: 350px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #e0e4e4;
+  background: #f4f6f4;
+}
+
+.card-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 350px;
+  object-fit: contain;
+}
+
+.reading {
+  min-width: 0;
+  padding: 9px 2px 4px 0;
+}
+
+.arcana-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 10px;
+}
+
+.arcana-seal {
+  position: relative;
+  display: grid;
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid #c6a66f;
+  border-radius: 50%;
+  color: #a4814c;
+}
+
+.arcana-seal::before {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid #dfd1b5;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.arcana-seal::after {
+  position: absolute;
+  inset: -3px;
+  border: 1px solid #dfd1b5;
+  border-radius: 50%;
+  content: "";
+  clip-path: inset(0 0 0 50%);
+}
+
+.arcana-seal i {
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.arcana-rule {
+  flex: 0 0 30px;
+  height: 1px;
+  background: #d9c9a8;
+}
+
+.arcana-label span:last-child {
+  color: #5c7489;
+  font-size: 12px;
+}
+
+.reading h2 {
+  margin: 11px 0 19px;
+  color: #2c465e;
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.reading-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #a27d58;
+  font-size: 12px;
+}
+
+.reading-label span {
+  color: #ba966a;
+  font-size: 11px;
+}
+
+.card-meaning {
+  margin: 0;
+  color: #40576a;
+  font-size: 14px;
+  line-height: 1.85;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  margin-top: 12px;
+  padding: 0 5px;
+  border-top: 1px solid #d0dfe9;
+  color: #768b9b;
+  font-size: 10px;
+}

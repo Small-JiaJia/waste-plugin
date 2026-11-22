@@ -1,0 +1,310 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 560px;
+  margin: 0;
+  background: #edf4f8;
+}
+
+body {
+  color: #29445b;
+  font-family: "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+
+#container {
+  width: 560px;
+  padding: 30px 28px 26px;
+}
+
+.masthead {
+  display: flex;
+  align-items: center;
+  min-height: 125px;
+  padding: 0 13px 18px;
+  border-bottom: 1px solid #cbdde8;
+}
+
+.shrine-mark {
+  position: relative;
+  flex: 0 0 95px;
+  height: 82px;
+  margin: 0 4px 0 3px;
+  transform: scale(.78);
+  transform-origin: left center;
+}
+
+.shrine-mark::after {
+  position: absolute;
+  right: 15px;
+  bottom: 4px;
+  left: 15px;
+  height: 3px;
+  border-top: 1px solid #d6b7b8;
+  border-bottom: 1px solid #d6b7b8;
+  content: "";
+}
+
+.torii-roof,
+.torii-roof-shadow,
+.torii-crossbar,
+.torii-post,
+.torii-shimenawa,
+.torii-shide,
+.sakura-petal {
+  position: absolute;
+  display: block;
+}
+
+.torii-roof {
+  top: 11px;
+  left: 11px;
+  width: 100px;
+  height: 9px;
+  border-radius: 8px 8px 2px 2px;
+  background: #bf687d;
+}
+
+.torii-roof-shadow {
+  top: 23px;
+  left: 20px;
+  width: 82px;
+  height: 5px;
+  border-radius: 2px;
+  background: #d18a99;
+}
+
+.torii-crossbar {
+  top: 40px;
+  left: 23px;
+  width: 76px;
+  height: 6px;
+  border-radius: 2px;
+  background: #bf687d;
+}
+
+.torii-post {
+  top: 24px;
+  width: 7px;
+  height: 70px;
+  border-radius: 1px 1px 0 0;
+  background: #bf687d;
+}
+
+.torii-post-left {
+  left: 29px;
+}
+
+.torii-post-right {
+  right: 29px;
+}
+
+.torii-shimenawa {
+  top: 34px;
+  left: 35px;
+  width: 51px;
+  height: 7px;
+  border-top: 2px solid #a88760;
+  border-bottom: 1px solid #d2b895;
+  transform: rotate(2deg);
+}
+
+.torii-shide {
+  top: 38px;
+  width: 11px;
+  height: 19px;
+  background: #fffefa;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 42% 35%, 70% 59%, 100% 59%, 100% 100%, 51% 72%, 0 100%, 0 61%, 43% 61%, 20% 39%, 0 39%);
+}
+
+.torii-shide-left {
+  left: 45px;
+}
+
+.torii-shide-right {
+  left: 69px;
+}
+
+.sakura-petal {
+  width: 9px;
+  height: 13px;
+  border-radius: 90% 15% 90% 20%;
+  background: #e2a8ae;
+}
+
+.sakura-petal-left {
+  top: 23px;
+  left: 4px;
+  transform: rotate(-27deg);
+}
+
+.sakura-petal-right {
+  top: 49px;
+  right: 5px;
+  transform: rotate(43deg);
+}
+
+.shrine-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.eyebrow,
+.subheading,
+.date-label {
+  color: #758da0;
+}
+
+.eyebrow {
+  font-size: 12px;
+}
+
+.shrine-title h1 {
+  margin: 5px 0 3px;
+  color: #263f55;
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.subheading {
+  font-size: 12px;
+}
+
+.shrine-stamp {
+  display: flex;
+  flex: 0 0 61px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: 12px;
+  padding-left: 11px;
+  border-left: 1px solid #d1dfe7;
+}
+
+.shrine-stamp img {
+  display: block;
+  width: 50px;
+  height: 51px;
+  object-fit: contain;
+}
+
+.fortune-paper {
+  position: relative;
+  margin-top: 25px;
+  padding: 27px 36px 31px;
+  border: 1px solid #d5e1e8;
+  border-top: 3px solid #cf8295;
+  background: #fffefa;
+}
+
+.paper-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 45px;
+  padding: 0 7px 16px;
+  border-bottom: 1px solid #e5e7e4;
+}
+
+.paper-heading-title {
+  color: #35536b;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.date-label {
+  font-size: 10px;
+}
+
+.date-box strong {
+  color: #527793;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fortune-layout {
+  margin-top: 29px;
+  padding: 0 8px;
+}
+
+.fortune-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rank {
+  flex: 0 0 auto;
+  color: #c66a82;
+  font-size: 29px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.fortune-paper.low .rank {
+  color: #6c8191;
+}
+
+.heading-rule {
+  width: 1px;
+  height: 25px;
+  background: #e8cbd1;
+}
+
+.fortune-title {
+  color: #304e66;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.fortune-description {
+  max-width: 100%;
+  margin: 17px 0 0;
+  color: #3e5669;
+  font-size: 16px;
+  line-height: 1.95;
+  white-space: pre-line;
+}
+
+.lucky-item {
+  margin: 26px 8px 0;
+  padding-top: 17px;
+  border-top: 1px solid #ead9de;
+}
+
+.item-heading {
+  margin-bottom: 7px;
+  color: #b45d73;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lucky-item p {
+  margin: 0;
+  color: #52697a;
+  font-size: 14px;
+  line-height: 1.85;
+  white-space: pre-line;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  margin-top: 20px;
+  padding: 0 5px;
+  color: #748b9c;
+  font-size: 10px;
+}

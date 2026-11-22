@@ -1,11 +1,21 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import common from "../../../lib/common/common.js";
-import fetch from 'node-fetch'
 import axios from 'axios'
 
-const URL = 'https://huggingface.co/spaces/tvt/anime-remove-background'  
+const URL = 'https://huggingface.co/spaces/tvt/anime-remove-background'
+const REQUEST_TIMEOUT = 30_000
+const PUSH_TIMEOUT = 60_000
+const TASK_TIMEOUT = 180_000
+const POLL_INTERVAL = 1_000
+const ACTIVE_STATUSES = new Set([
+    'PENDING', 'QUEUED', 'IN_QUEUE', 'STARTING', 'RUNNING',
+    'PROCESSING', 'GENERATING', 'IN_PROGRESS', 'WAITING'
+])
+const FAILED_STATUSES = new Set([
+    'ERROR', 'FAILED', 'FAILURE', 'CANCELLED', 'CANCELED', 'REJECTED', 'QUEUE_FULL'
+])
 
-let zt = 0
+let isProcessing = false
 
 export class RemoveBackground extends plugin {
     constructor() {
@@ -29,79 +39,79 @@ export class RemoveBackground extends plugin {
     }
 
   async AnimeRemoveBackground(e) {
-    if (URL == '') return 
-	if (zt == 1) {
-		e.reply('当前有任务正在执行..', true, { recallMsg: 10 })
-		return
-	}
-	let image = await this.getImage(e)
-	if (!image) return
-        const API = 'https://' + URL.split('/')[4] + '-anime-remove-background.hf.space/api/queue/'
-
-            e.reply('正在为图像去背景，请稍候...', true, { recallMsg: 10 })
-            zt = 1
-
-        try {
-            let img = await axios.get(image, {
-                responseType: 'arraybuffer'
-            });
-            let base64 = Buffer.from(img.data, 'binary')
-                .toString('base64');
-            let hash = await getHash(e);
-			
-            let response = await axios.post(
-                API + `push/`, {
-                'fn_index': 1,
-                'data': [
-                    'data:image/jpeg;base64,' + base64
-                ],
-                'action': 'predict',
-                'session_hash': hash
-            },
-            )
-            let statushash = response.data.hash
-            let res = await axios.post(
-                API + 'status/',
-                {
-                    'hash': statushash
-                },
-            )
-            let status = res.data.status
-            while (status != 'COMPLETE') {
-                res = await axios.post(
-                    API + 'status/',
-                    {
-                        'hash': statushash
-                    },
-                )
-                status = res.data.status
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-            }
-			let msgs = []
-			//logger.info(JSON.stringify(res.data, null, 2))
-			res.data.data.data[0] = res.data.data.data[0].replace(/^data:image\/png;base64,/, "")
-			res.data.data.data[1] = res.data.data.data[1].replace(/^data:image\/png;base64,/, "")
-			let buffer0 = Buffer.from(res.data.data.data[0], 'base64') 
-            let buffer = Buffer.from(res.data.data.data[1], 'base64')
-			
-			msgs.push(`====图片去背景处理完成====`)
-			msgs.push(segment.image(image))
-			msgs.push(`========处理结果========`)
-			msgs.push(segment.image(buffer0))
-			msgs.push(segment.image(buffer))
-            //await e.reply(segment.image(buffer), true)
-			await e.reply(await common.makeForwardMsg(e, msgs))
-			zt = 0
-		} catch(error) {
-			e.reply('请求失败', true)
-		    zt = 0
-            return
-		}
-
+    if (!URL) return true
+    if (isProcessing) {
+      await e.reply('当前有任务正在执行，请稍后再试。', true, { recallMsg: 10 })
+      return true
     }
-    
+
+    const image = await this.getImage(e)
+    if (!image) return true
+
+    // getImage awaits; recheck before acquiring the process-wide lock.
+    if (isProcessing) {
+      await e.reply('当前有任务正在执行，请稍后再试。', true, { recallMsg: 10 })
+      return true
+    }
+    isProcessing = true
+
+    const API = 'https://' + URL.split('/')[4] + '-anime-remove-background.hf.space/api/queue/'
+    const deadline = Date.now() + TASK_TIMEOUT
+    let outputMessage
+    let failed = false
+
+    try {
+      Promise.resolve(e.reply('正在为图像去背景，请稍候...', true, { recallMsg: 10 }))
+        .catch(error => logger.warn('[waste-plugin] 发送抠图提示失败：', error))
+
+      const img = await axios.get(image, {
+        responseType: 'arraybuffer',
+        timeout: requestTimeout(deadline)
+      })
+      const base64 = Buffer.from(img.data).toString('base64')
+      const response = await axios.post(
+        API + 'push/',
+        {
+          fn_index: 1,
+          data: ['data:image/jpeg;base64,' + base64],
+          action: 'predict',
+          session_hash: getHash()
+        },
+        { timeout: requestTimeout(deadline, PUSH_TIMEOUT) }
+      )
+      const statusHash = response.data?.hash
+      if (!statusHash) throw new Error('抠图服务未返回任务编号')
+
+      const result = await waitForResult(API, statusHash, deadline)
+      const outputs = result?.data?.data
+      if (!Array.isArray(outputs) || outputs.length < 2 || outputs.slice(0, 2).some(value => typeof value !== 'string')) {
+        throw new Error('抠图服务返回的数据格式无效')
+      }
+
+      const buffer0 = Buffer.from(outputs[0].replace(/^data:image\/[^;,]+;base64,/i, ''), 'base64')
+      const buffer = Buffer.from(outputs[1].replace(/^data:image\/[^;,]+;base64,/i, ''), 'base64')
+      const msgs = [
+        '====图片去背景处理完成====',
+        segment.image(image),
+        '========处理结果========',
+        segment.image(buffer0),
+        segment.image(buffer)
+      ]
+      outputMessage = await common.makeForwardMsg(e, msgs)
+    } catch (error) {
+      logger.warn('[waste-plugin] 去背景请求失败：', error)
+      failed = true
+    } finally {
+      isProcessing = false
+    }
+
+    if (failed) await e.reply('抠图请求失败或超时，请稍后重试。', true)
+    else await e.reply(outputMessage)
+    return true
+  }
+
   async getImage(e) {
-	let imgUrls = []
+    let imgUrls = []
 	  if (e.source || e.reply_id ) {
         // 优先从回复找图
         let reply
@@ -133,7 +143,31 @@ export class RemoveBackground extends plugin {
   }
 }
 
-async function getHash(e) {
+function requestTimeout(deadline, maxTimeout = REQUEST_TIMEOUT) {
+  const remaining = deadline - Date.now()
+  if (remaining <= 0) throw new Error('抠图任务超时')
+  return Math.min(maxTimeout, remaining)
+}
+
+async function waitForResult(api, hash, deadline) {
+  while (Date.now() < deadline) {
+    const response = await axios.post(
+      api + 'status/',
+      { hash },
+      { timeout: requestTimeout(deadline) }
+    )
+    const status = String(response.data?.status || '').toUpperCase()
+
+    if (status === 'COMPLETE') return response.data
+    if (FAILED_STATUSES.has(status)) throw new Error(`抠图任务结束，服务状态：${status}`)
+    if (!ACTIVE_STATUSES.has(status)) throw new Error(`抠图服务返回未知状态：${status || '空状态'}`)
+
+    await new Promise(resolve => setTimeout(resolve, Math.min(POLL_INTERVAL, deadline - Date.now())))
+  }
+  throw new Error('抠图任务超时')
+}
+
+function getHash() {
     let hash = '';
     let chars = '0123456789abcdefghijklmnopqrstuvwxyz';
     for (let i = 0; i < 10; i++) {

@@ -4,7 +4,7 @@
  * ============================================================
  * 插件名称：月谕圣牌
  * 触发指令：占卜 或 #占卜
- * 功能说明：随机抽取一张月谕圣牌，返回牌名、解读文字及对应图片
+ * 功能说明：随机抽取一张月谕圣牌，合成牌面与解读图片
  *
  * 核心特性：
  *   ✅ 每日限制 1 次（可配置），基于日期自动重置，不依赖 Redis TTL
@@ -26,12 +26,16 @@
 
 // ===================== 依赖导入 =====================
 import fs from 'fs';                          // 文件系统操作
+import path from 'node:path';                // 临时渲染文件路径
+import { randomUUID } from 'node:crypto';     // 每次渲染使用唯一文件名
 import lodash from 'lodash';                 // 工具库，用于随机抽样
 import moment from 'moment';                 // 时间处理库，用于日期格式化和计算
 import plugin from '../../../lib/plugins/plugin.js'; // Yunzai 插件基类
 import { cards } from '../data/Moon Oracle Cards.js'; // 22 张月谕圣牌数据
 import YAML from 'yaml';                     // YAML 配置文件解析器
 import { segment } from 'oicq';              // 构造图片消息段（显式导入确保可用）
+import { pluginName } from '../config/constant.js';
+import { reserveDailyCount } from '../model/atomic-daily-limit.js';
 
 // ===================== 路径常量 =====================
 const _path = process.cwd();                 // 机器人根目录
@@ -43,6 +47,11 @@ const DEFAULT_CONFIG = {
   enable: true,   // 功能总开关：true=启用，false=禁用
   limit: 1        // 每日每人最多占卜次数
 };
+
+const ARCANA_NUMERALS = [
+  '0', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X',
+  'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI'
+];
 
 // ===================== 模块级配置加载 =====================
 // 说明：将配置加载放在模块顶层，确保只在插件加载时执行一次，
@@ -146,60 +155,14 @@ export class MoonOracleCards extends plugin {
     return Math.max(Math.floor(seconds), 1); // 取整并确保至少 1 秒
   }
 
-  /**
-   * 检查当前用户是否可以进行占卜（基于日期+计数的每日限制）
-   * 
-   * 存储结构：在 Redis 中存储 JSON 对象 { count: 1, date: "2026-08-21" }
-   * 
-   * 逻辑流程：
-   *   1. 读取 Redis 中存储的数据
-   *   2. 若无数据 或 存储的日期不是今天：
-   *      → 重置计数为 1，更新日期为今天，并设置 TTL 到次日零点
-   *      → 允许访问
-   *   3. 若存储的日期是今天：
-   *      → 检查 count 是否达到配置的 limit
-   *      → 若达到上限，拒绝访问
-   *      → 若未达上限，count+1 并更新存储，允许访问
-   * 
-   * 这种设计确保了每日零点自动重置，不依赖 Redis TTL 的精确性，
-   * 即使因时区或系统时间问题导致 TTL 失效，也能保证业务逻辑正确。
-   * 
-   * @returns {Promise<boolean>} true 表示允许占卜，false 表示已达今日上限
-   */
   async canAccess() {
-    const today = this.getToday();                    // 获取今天日期
-    const dataStr = await redis.get(this.key);       // 读取 Redis 存储
-    let data = null;
-
-    // 尝试解析已有数据（容错处理，若 JSON 解析失败则视为无数据）
-    if (dataStr) {
-      try {
-        data = JSON.parse(dataStr);
-      } catch (_) {
-        data = null;
-      }
-    }
-
-    // ----- 情况1：无数据 或 存储日期不是今天 → 需要重置 -----
-    if (!data || data.date !== today) {
-      // 重置计数为 1，记录今天日期
-      const newData = { count: 1, date: today };
-      // 设置过期时间到次日零点，作为自动清理的备份
-      const remainingSeconds = this.getSecondsUntilNextDay();
-      await redis.set(this.key, JSON.stringify(newData), 'EX', remainingSeconds);
-      return true; // 允许访问
-    }
-
-    // ----- 情况2：存储日期是今天 → 检查计数 -----
-    if (data.count >= config.limit) {
-      return false; // 已达到今日上限，拒绝访问
-    }
-
-    // 未达上限：计数 +1，更新存储
-    data.count += 1;
-    // 注意：这里不重置 TTL，让它在次日零点自然失效（由情况1接管重置逻辑）
-    await redis.set(this.key, JSON.stringify(data));
-    return true; // 允许访问
+    const result = await reserveDailyCount({
+      key: this.key,
+      date: this.getToday(),
+      limit: config.limit,
+      expiresIn: this.getSecondsUntilNextDay()
+    });
+    return result.ok;
   }
 
   /**
@@ -221,9 +184,8 @@ export class MoonOracleCards extends plugin {
    *   3. 每日次数限制检查（canAccess）
    *   4. 洗牌动画（发送提示 + 延迟 2.8 秒）
    *   5. 随机抽牌（lodash.sample）
-   *   6. 发送文字解读（@用户后换行，排版清晰）
-   *   7. 发送牌面图片（若本地存在）
-   *   8. 图片缺失时提示用户补全
+   *   6. 合成牌名、解读文字及牌面图片
+   *   7. 渲染失败或图片缺失时回退到文字回复
    * 
    * 整个流程包裹在 try-catch 中，任何异常都会捕获并友好提示用户，
    * 不会导致插件崩溃或暴露内部错误信息。
@@ -259,21 +221,45 @@ export class MoonOracleCards extends plugin {
         throw new Error('随机抽牌失败（返回空对象）');
       }
 
-      // ----- 6. 发送文字解读（@ 后换行，使排版更清晰） -----
+      // ----- 6. 合成牌面与解读，渲染失败时回退到原有回复 -----
       const fullName = card.name_full || card.name_cn; // 优先使用全称
-      await this.reply(
-        `\n✨ 月谕圣牌 · ${fullName}\n「${card.name_cn}」\n\n${card.meaning}`,
-        false,
-        { at: true }
-      );
+      const textReply = `\n✨ 月谕圣牌 · ${fullName}\n「${card.name_cn}」\n\n${card.meaning}`;
+      const localPath = path.join(imagePath, card.pic);
 
-      // ----- 7. 发送牌面图片（本地读取） -----
-      const localPath = imagePath + card.pic;
       if (fs.existsSync(localPath)) {
-        // 图片存在，构造图片消息段并发送
-        const pic = segment.image(localPath);
-        await this.reply(pic);
+        const saveId = `oracle-${randomUUID()}`;
+        const renderFile = path.join(
+          process.cwd(), 'temp', 'html', pluginName, 'fortune', 'moonOracle', `${saveId}.html`
+        );
+
+        try {
+          const image = await this.e.runtime?.render(pluginName, 'fortune/moonOracle', {
+            card: {
+              number: ARCANA_NUMERALS[card.id] || '',
+              name_cn: card.name_cn,
+              pic: card.pic,
+              meaning: card.meaning
+            },
+            date: moment().format('YYYY.MM.DD'),
+            saveId
+          }, { retType: 'base64' });
+
+          if (image) {
+            await this.reply(image, false, { at: true });
+            return true;
+          }
+        } catch (error) {
+          logger.error('[月谕圣牌] 图片渲染失败，回退至原有牌面回复：', error);
+        } finally {
+          await fs.promises.unlink(renderFile).catch(() => {});
+        }
+
+        await this.reply(textReply, false, { at: true });
+        await this.reply(segment.image(localPath));
       } else {
+        // ----- 7. 牌图缺失时发送原文字解读 -----
+        await this.reply(textReply, false, { at: true });
+
         // 图片缺失：记录错误日志，并提示用户补全图片
         logger.error(`[月谕圣牌] 图片缺失：${localPath}`);
         await this.reply(

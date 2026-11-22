@@ -33,7 +33,7 @@ body {
 .container {
     width: 1191px;
     height: 670px;
-    background-image: url("../../torrent/img/single_blackgroud.png");
+    background-image: url("../../torrent/img/background.jpg");
     background-size: 100% 100%;
     overflow: hidden;
     position: relative;
