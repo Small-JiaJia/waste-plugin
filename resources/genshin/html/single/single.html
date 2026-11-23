@@ -5,6 +5,7 @@
     <link rel="shortcut icon" href="#" />
     <link rel="stylesheet" type="text/css" href="{{pluResPath}}html/single/single.css" />
     <link rel="preload" href="{{pluResPath}}font/tttgbnumber.ttf" as="font">
+    <link rel="preload" href="{{pluResPath}}torrent/img/background.jpg" as="image">
     <title>Title</title>
   </head>
   <body>
@@ -19,14 +20,16 @@
 
       {{if isWeapon}}
         <div>
-          <img src="{{pluResPath}}torrent/img/{{element}}2.png" class="wep_back" id="back"/>
+          <img src="{{pluResPath}}torrent/img/bgWeapon.png" class="wep_back" id="back"/>
           <img src="{{imgPath}}" class="weapon_img"/>
         </div>
       {{else}}
         <div><img src="{{imgPath}}" class="gacha_img"/></div>
       {{/if}}
-      <img src="{{pluResPath}}torrent/img/{{element}}.png" class="element"/>
-      <img src="{{pluResPath}}torrent/img/star-{{star}}.png" class="star"/>
+      {{if element}}
+        <img src="{{pluResPath}}torrent/img/{{element}}.png" class="element"/>
+      {{/if}}
+      <img src="{{pluResPath}}torrent/img/s-{{star}}.png" class="star"/>
       <div class="name">{{name}}</div>
       <div class="logo">Created By Yunzai-Bot & Waste-plugin</div>
     </div>

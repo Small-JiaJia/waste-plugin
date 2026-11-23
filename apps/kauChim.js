@@ -1,7 +1,12 @@
 import lodash from 'lodash'
 import moment from 'moment'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import plugin from '../../../lib/plugins/plugin.js'
 import cards from '../data/kauChim.js'
+import { pluginName } from '../config/constant.js'
+import { claimDailyCooldown } from '../model/atomic-daily-limit.js'
 
 export class kauChim extends plugin {
   constructor () {
@@ -29,34 +34,71 @@ export class kauChim extends plugin {
     }
   }
 
-  get time () {
-    return moment().format('X')
-  }
-
   async checkUser () {
-    const expireTime = await redis.get(this.key)
-    if (expireTime && this.time <= expireTime) {
-      return false
-    }
-    const newExpireTime = moment().endOf('day').format('X')
-    await redis.setEx(this.key, 3600 * 24, newExpireTime)
-    return true
+    const now = moment()
+    const result = await claimDailyCooldown({
+      key: this.key,
+      now: now.unix(),
+      expiresAt: now.clone().endOf('day').unix(),
+      ttlSeconds: 3600 * 24
+    })
+    return result.ok
   }
 
   async kauChim () {
     const card = lodash.sample(cards)
     const valid = await this.checkUser()
     if (!valid) {
-      this.reply('（今天已经抽过了，明天再来看看吧…）')
-      return
+      await this.reply('（今天已经抽过了，明天再来看看吧…）')
+      return true
     }
+
     let msg = `${card?.name}\n${card?.dsc}`
     if (this.e.isGroup) {
       msg = '\n' + msg
     }
-    await this.reply(msg, false, { at: true })
-    if (card?.item) {
-      this.reply(card?.item)
+
+    const replyText = async () => {
+      await this.reply(msg, false, { at: true })
+      if (card?.item) await this.reply(card.item)
     }
+
+    if (!card || !this.e.runtime) {
+      await replyText()
+      return true
+    }
+
+    const saveId = `fortune-${randomUUID()}`
+    const renderFile = path.join(
+      process.cwd(), 'temp', 'html', pluginName, 'fortune', 'kauChim', `${saveId}.html`
+    )
+
+    try {
+      const rank = card.name?.split('·')[0] || '吉'
+      const title = card.name?.split('·').slice(1).join('·') || card.name || '今日御神签'
+      const image = await this.e.runtime.render(pluginName, 'fortune/kauChim', {
+        fortune: {
+          rank,
+          title,
+          description: card.dsc || '',
+          item: card.item || '',
+          tone: rank.includes('凶') ? 'low' : rank === '大吉' ? 'high' : 'steady'
+        },
+        date: moment().format('YYYY.MM.DD'),
+        saveId
+      }, { retType: 'base64' })
+
+      if (image) {
+        await this.reply(image, false, { at: true })
+        return true
+      }
+    } catch (error) {
+      logger.error('[waste-plugin] 御神签图片渲染失败：', error)
+    } finally {
+      await fs.unlink(renderFile).catch(() => {})
+    }
+
+    await replyText()
+    return true
   }
 }

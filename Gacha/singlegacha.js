@@ -1,8 +1,10 @@
 // Gacha/singlegacha.js
-// 抽卡核心：单抽概率计算 + 捕获明光（计数器 + 0.018% 基础概率）+ 武器定轨（命定值上限1）
+// 抽卡核心：单抽概率计算 + 捕获明光社区模型 + 武器定轨
 
 import lodash from 'lodash'
 import { POOL, PROB, getCurrentPool } from '../data/gacha-pool.js'
+import { getFiveStarProbability, migrateCaptureMisses, resolveRoleFiveStar } from './gacha-rules.js'
+import { getGachaStateKey } from './gacha-lock.js'
 
 export class SingleGacha {
   constructor (e, options = {}) {
@@ -25,37 +27,71 @@ export class SingleGacha {
   // ---------- 用户状态 ----------
 
   get key () {
-    if (!this.e) return 'waste-plugin:gacha:unknown'
-    const prefix = 'waste-plugin:gacha'
-    if (this.e.isGroup) return `${prefix}:${this.e.group_id}:${this.e.user_id}`
-    return `${prefix}:private:${this.e.user_id}`
+    return getGachaStateKey(this.e)
   }
 
   async loadUser () {
-    let user = await redis.get(this.key)
-    if (user) {
-      user = JSON.parse(user)
-      const now = Date.now() / 1000
-      if (now > user.today.expire) {
-        user.today = { star: [], expire: this.getEnd4(), num: 0, weaponNum: 0 }
-      }
-      if (now > user.week.expire) {
-        user.week = { num: 0, expire: this.getWeekEnd() }
-      }
-      return user
+    const stored = await redis.get(this.key)
+    const user = stored ? JSON.parse(stored) : this.createUser()
+    const defaults = this.createUser()
+    const storedRole = user.role || {}
+    const hadKMiss = storedRole.kMiss !== undefined && storedRole.kMiss !== null
+    const legacyCaptureCount = storedRole.captureCount
+
+    for (const type of ['permanent', 'role', 'weapon']) {
+      user[type] = { ...defaults[type], ...(user[type] || {}) }
+      delete user[type].captureCount
     }
-    const common = { num4: 0, isUp4: 0, num5: 0, isUp5: 0, captureCount: 1 }
+    if (!hadKMiss) {
+      const legacy = Number(legacyCaptureCount)
+      user.role.kMiss = Number.isFinite(legacy)
+        ? (legacy >= PROB.captureMaxMiss ? PROB.captureMaxMiss : Math.max(0, Math.floor(legacy) - 1))
+        : 0
+    }
+    migrateCaptureMisses(user.role)
+
+    user.today = { ...defaults.today, ...(user.today || {}) }
+    user.week = { ...defaults.week, ...(user.week || {}) }
+    const now = Date.now() / 1000
+    if (!user.today.expire || now > user.today.expire) {
+      user.today = { star: [], expire: this.getEnd4(), num: 0, weaponNum: 0 }
+    }
+    if (!user.week.expire || now > user.week.expire) {
+      user.week = { num: 0, expire: this.getWeekEnd() }
+    }
+
+    const weaponBannerId = this.getWeaponBannerId()
+    if (weaponBannerId && user.weapon.bannerId !== weaponBannerId) {
+      user.weapon.lifeNum = 0
+      user.weapon.dingTrack = null
+      user.weapon.bannerId = weaponBannerId
+    }
+    return user
+  }
+
+  createUser () {
+    const common = { num4: 0, isUp4: 0, num5: 0, isUp5: 0 }
     return {
       permanent: { ...common },
-      role: { ...common },
-      weapon: { ...common, lifeNum: 0, dingTrack: null },
+      role: { ...common, kMiss: 0 },
+      weapon: { ...common, lifeNum: 0, dingTrack: null, bannerId: null },
       today: { star: [], expire: this.getEnd4(), num: 0, weaponNum: 0 },
       week: { num: 0, expire: this.getWeekEnd() }
     }
   }
 
-  async saveUser () {
-    await redis.setEx(this.key, 3600 * 24 * 7, JSON.stringify(this.user))
+  async saveUser (lock) {
+    const value = JSON.stringify(this.user)
+    if (lock?.saveState) {
+      await lock.saveState(this.key, value)
+      return
+    }
+    await redis.set(this.key, value)
+  }
+
+  getWeaponBannerId () {
+    if (!this.NowPool?.from || !this.NowPool?.to) return null
+    return [this.NowPool.version || '', this.NowPool.half || '', this.NowPool.from, this.NowPool.to].join(':')
   }
 
   // ---------- 池子装配 ----------
@@ -130,7 +166,16 @@ export class SingleGacha {
     if (this.type === 'weapon' && state.lifeNum >= 1) {
       tmpName = this.getDingWeapon()
       state.lifeNum = 0
+      state.isUp5 = 0
       isBing = true
+    }
+    // 小保底：角色池走捕获明光
+    else if (this.type === 'role') {
+      const result = resolveRoleFiveStar(state)
+      tmpName = result.outcome === 'offrate'
+        ? lodash.sample(this.pool.five)
+        : lodash.sample(this.pool.up5)
+      isBigUP = result.isBigUP
     }
     // 大保底
     else if (state.isUp5 === 1) {
@@ -139,15 +184,11 @@ export class SingleGacha {
       tmpName = lodash.sample(this.pool.up5)
       if (tmpName === this.getDingWeapon()) state.lifeNum = 0
     }
-    // 小保底：角色池走捕获明光
-    else if (this.type === 'role') {
-      const result = this.rollCapturingRadiance(state)
-      tmpName = result.name
-      isBigUP = result.isBigUP
-    }
     // 武器池小保底 / 常驻池
     else {
-      const tmpUp = this.type === 'permanent' ? 0 : PROB.wai
+      const tmpUp = this.type === 'permanent'
+        ? 0
+        : (this.type === 'weapon' ? PROB.weaponUp5 : PROB.wai)
       if (lodash.random(1, 100) <= tmpUp) {
         tmpName = lodash.sample(this.pool.up5)
         if (tmpName === this.getDingWeapon()) state.lifeNum = 0
@@ -186,35 +227,6 @@ export class SingleGacha {
       rand: lodash.random(1, 7)   // 阴影变体 1-7
     }
     return true
-  }
-
-  /**
-   * 捕获明光判定（精确模型）
-   * 计数器初始 1，歪 +1，不歪 -1（最低 0），达到 3 必触发，触发后重置为 1
-   * 另有 0.018% 无条件基础触发概率
-   */
-  rollCapturingRadiance (state) {
-    if (state.captureCount >= PROB.captureMax) {
-      state.captureCount = 1
-      state.isUp5 = 0
-      return { name: lodash.sample(this.pool.up5), isBigUP: false }
-    }
-
-    if (Math.random() * 100 < PROB.captureBase) {
-      state.captureCount = 1
-      state.isUp5 = 0
-      return { name: lodash.sample(this.pool.up5), isBigUP: false }
-    }
-
-    if (lodash.random(1, 100) <= PROB.wai) {
-      state.captureCount = Math.min(state.captureCount + 1, PROB.captureMax)
-      state.isUp5 = 1
-      return { name: lodash.sample(this.pool.five), isBigUP: false }
-    } else {
-      state.captureCount = Math.max(state.captureCount - 1, 0)
-      state.isUp5 = 0
-      return { name: lodash.sample(this.pool.up5), isBigUP: false }
-    }
   }
 
   lottery4 () {
@@ -272,34 +284,7 @@ export class SingleGacha {
 
   probability () {
     const state = this.user[this.type]
-    let tmpChance5 = PROB.chance5
-
-    if (this.type === 'role' || this.type === 'permanent') {
-      if (this.user.week.num === 1) tmpChance5 *= 2
-      if (state.num5 >= 90) {
-        tmpChance5 = 10000
-      } else if (state.num5 >= 74) {
-        tmpChance5 = 590 + (state.num5 - 74) * 530
-      } else if (state.num5 >= 60) {
-        tmpChance5 = PROB.chance5 + (state.num5 - 50) * 40
-      }
-    }
-
-    if (this.type === 'weapon') {
-      tmpChance5 = PROB.chanceW5
-      if (this.user.week.num === 1) tmpChance5 *= 3
-      if (state.num5 >= 80) {
-        tmpChance5 = 10000
-      } else if (state.num5 >= 62) {
-        tmpChance5 += (state.num5 - 61) * 700
-      } else if (state.num5 >= 45) {
-        tmpChance5 += (state.num5 - 45) * 60
-      } else if (state.num5 >= 10 && state.num5 <= 20) {
-        tmpChance5 += (state.num5 - 10) * 30
-      }
-    }
-
-    return tmpChance5
+    return getFiveStarProbability(this.type, state.num5, this.user.week.num)
   }
 
   // ---------- 武器定轨 ----------

@@ -27,9 +27,9 @@ export class GachaSetting extends plugin {
       const s = getSetting(groupId)
       const lines = [
         '【当前抽卡设置】',
-        `粉球（角色池）每日上限：${s.pinkBall === 0 ? '不限制' : s.pinkBall}`,
-        `蓝球（常驻池）每日上限：${s.blueBall === 0 ? '不限制' : s.blueBall}`,
-        `武器池每日上限：${s.weaponBall === 0 ? '不限制' : s.weaponBall}`,
+        `粉球（角色池）每人每日上限：${s.pinkBall === 0 ? '不限制' : s.pinkBall}`,
+        `蓝球（常驻池）每人每日上限：${s.blueBall === 0 ? '不限制' : s.blueBall}`,
+        `武器池每人每日上限：${s.weaponBall === 0 ? '不限制' : s.weaponBall}`,
         `未出货撤回时间：${s.recallTime} 秒`,
         '',
         '修改示例：',
@@ -39,6 +39,11 @@ export class GachaSetting extends plugin {
         '#设置抽卡撤回时间100'
       ]
       await this.reply(lines.join('\n'), false, { at: this.e.user_id })
+      return true
+    }
+
+    if (!this.e.isMaster) {
+      await this.reply('仅机器人主人可以修改抽卡设置。', false, { at: this.e.user_id })
       return true
     }
 

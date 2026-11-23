@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{_res_path}}help/index.css">
+</head>
+<body>
+  <main id="container">
+    <header class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">MIAO-YUNZAI PLUGIN <span class="eyebrow-star">✦</span> GENSHIN MENU</span>
+        <h1><a href="https://github.com/Small-JiaJia/waste-plugin">waste-plugin</a></h1>
+        <div class="element-line" aria-label="元素与命运">
+          <span>ANEMO</span><i></i><span>HYDRO</span><i></i><span>FATE</span>
+        </div>
+      </div>
+      <div class="constellation" aria-hidden="true">
+        <span class="orbit orbit-outer"></span>
+        <span class="orbit orbit-inner"></span>
+        <span class="constellation-star">✦</span>
+        <span class="minor-star minor-star-one">✧</span>
+        <span class="minor-star minor-star-two">✧</span>
+        <span class="constellation-caption">GENSHIN</span>
+      </div>
+      <span class="hero-index">W · 01</span>
+    </header>
+
+    <section class="guide-grid" aria-label="功能指令">
+      {{each helpGroups group}}
+      <article class="help-group">
+        <div class="group-heading">
+          <span class="group-mark">{{group.mark}}</span>
+          <h2>{{group.name}}</h2>
+          <span class="group-rule"></span>
+          <span class="heading-star">✧</span>
+        </div>
+        <div class="entry-list">
+          {{each group.entries entry}}
+          <div class="entry">
+            <div class="entry-command">{{entry.command}}</div>
+            <p class="entry-description">{{entry.description}}</p>
+          </div>
+          {{/each}}
+        </div>
+      </article>
+      {{/each}}
+    </section>
+
+    <footer class="footer">
+      <span class="footer-star">✦</span>
+      <p>深境与幽境配队功能需先绑定米游社 CK</p>
+      <span class="footer-rule"></span>
+      <span class="footer-label">WASTE-PLUGIN</span>
+    </footer>
+  </main>
+</body>
+</html>

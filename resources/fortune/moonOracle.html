@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{_res_path}}fortune/moonOracle.css">
+</head>
+<body>
+  <main id="container">
+    <header class="masthead">
+      <div class="title-group">
+        <span class="eyebrow">GENSHIN IMPACT · HEXENZIRKEL · TEA PARTY</span>
+        <h1>月谕圣牌</h1>
+        <span class="title-note">魔女会秘仪 · 命运解读</span>
+      </div>
+      <div class="date-box">
+        <span>抽牌日期</span>
+        <strong>{{date}}</strong>
+      </div>
+    </header>
+
+    <article class="oracle-card">
+      <figure class="card-art">
+        <img src="{{_res_path}}genshin/月谕圣牌/{{card.pic}}" alt="{{card.name_cn}}">
+      </figure>
+
+      <section class="reading">
+        <div class="arcana-label">
+          <span class="arcana-seal" aria-hidden="true"><i>✧</i></span>
+          <span>HEXENZIRKEL</span>
+          <span class="arcana-rule" aria-hidden="true"></span>
+          <span>MAJOR ARCANA</span>
+          <span>{{card.number}}</span>
+        </div>
+
+        <h2>{{card.name_cn}}</h2>
+        <div class="reading-label"><span aria-hidden="true">✦</span> 牌面解读</div>
+        <p class="card-meaning">{{card.meaning}}</p>
+      </section>
+    </article>
+
+    <footer class="footer">
+      <span>月谕圣牌 · 魔女会秘仪</span>
+      <span>本次占卜</span>
+    </footer>
+  </main>
+</body>
+</html>

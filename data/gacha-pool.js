@@ -5,6 +5,8 @@
 
 import { poolDetail } from '../../miao-plugin/resources/meta-gs/info/pool.js'
 
+export { PROB } from '../Gacha/gacha-rules.js'
+
 /**
  * 常驻池候选列表（从 gacha.yaml 完整迁移）
  * 这些角色/武器始终在常驻池中，歪了之后也从这里取
@@ -44,21 +46,6 @@ export const POOL = {
     '魔导绪论', '黑缨枪', '以理服人', '沐浴龙血的剑', '铁影阔剑',
     '飞天御剑', '黎明神剑', '冷刃'
   ]
-}
-
-/**
- * 基础概率参数（万分之一单位，即 10000 = 100%）
- * chance5 / chance4 等是基础值，实际概率由 probability() 动态计算
- */
-export const PROB = {
-  chance5: 60,        // 角色池五星基础概率 0.6%
-  chance4: 510,       // 角色池四星基础概率 5.1%
-  chanceW5: 70,       // 武器池五星基础概率 0.7%
-  chanceW4: 600,      // 武器池四星基础概率 6%
-  wai: 50,            // 小保底歪的基础概率 50%
-  captureBase: 0.018, // 捕获明光无条件基础触发概率（百分比）
-  // 捕获明光计数器
-  captureMax: 3       // 计数器达到此值时下次小保底必触发
 }
 
 /**

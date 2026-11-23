@@ -8,8 +8,11 @@ import common from '../../../lib/common/common.js'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { SingleGacha } from '../Gacha/singlegacha.js'
+import { GachaLockTimeoutError, withGachaLock } from '../Gacha/gacha-lock.js'
 import { getImg, getStar, getElem } from '../Gacha/gacha-res.js'
-import { checkDailyLimit, getRecallTime } from '../Gacha/gacha-config.js'
+import { getDailyLimit, getRecallTime } from '../Gacha/gacha-config.js'
+import { reserveDailyDraws } from '../Gacha/gacha-quota.js'
+import { GACHA_DRAW_REGEXP, parseTenPullBatches } from '../Gacha/gacha-command.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const RES_ROOT = path.resolve(__dirname, '../resources/genshin')
@@ -22,7 +25,7 @@ export class torrent extends plugin {
       event: 'message',
       priority: 99,
       rule: [
-        { reg: '^#*(单抽|单|10|[武器池常驻]*([一二三四五六七八九]?[十百]+)|抽)[连抽卡奖][123武器池常驻]*$', fnc: 'gacha' },
+        { reg: GACHA_DRAW_REGEXP, fnc: 'gacha' },
         { reg: '^#*定轨(.*)$', fnc: 'weaponBing' }
       ]
     })
@@ -35,54 +38,92 @@ export class torrent extends plugin {
     if (isNaN(gachacishu) || gachacishu < 1) return true
 
     const type = this.parseType()
-
-    // 初始化抽卡核心
-    const core = await new SingleGacha(this.e, {
-      type,
-      role2: this.e.msg.includes('2')
-    }).init()
-
-    // ---- 每日次数校验 ----
     const groupId = this.e.group_id || 'private'
     const isSingle = this.isSingleDraw()
     const totalDraw = isSingle ? 1 : gachacishu * 10
-    const todayUsed = this.getTodayUsed(core, type)
-    const limitCheck = checkDailyLimit(groupId, type, todayUsed, totalDraw)
-    if (!limitCheck.ok) {
+    let drawResult
+    try {
+      drawResult = await withGachaLock(this.e, async lock => {
+        const core = await new SingleGacha(this.e, {
+          type,
+          role2: this.e.msg.includes('2')
+        }).init()
+
+        const limitCheck = await reserveDailyDraws({
+          groupId,
+          userId: this.e.user_id,
+          type,
+          count: totalDraw,
+          limit: getDailyLimit(groupId, type),
+          expiresAt: core.user.today.expire
+        })
+
+        if (!limitCheck.ok) return { ok: false, limitCheck }
+
+        const recallTime = getRecallTime(groupId)
+        if (isSingle) {
+          const data = await this.runSingle(core)
+          await core.saveUser(lock)
+          return { ok: true, isSingle, data, recallTime }
+        }
+
+        const batches = []
+        let all5 = 0
+        let all4 = 0
+        for (let i = 1; i <= gachacishu; i++) {
+          const data = await this.runTen(core)
+          all5 += data.nowFive
+          all4 += data.nowFour
+          batches.push(data)
+        }
+        await core.saveUser(lock)
+        return { ok: true, isSingle, batches, all5, all4, recallTime }
+      })
+    } catch (err) {
+      if (err instanceof GachaLockTimeoutError) {
+        await this.reply('你的祈愿正在处理中，请稍后再试。', false, { at: this.e.user_id })
+        return true
+      }
+      logger.error('[waste-plugin] 祈愿状态处理失败：', err)
+      await this.reply('祈愿处理失败，请稍后重试。', false, { at: this.e.user_id })
+      return true
+    }
+
+    if (!drawResult.ok) {
+      const { limitCheck } = drawResult
       await this.reply(
-        `今日「${this.typeName(type)}」已抽 ${todayUsed} 抽，上限 ${limitCheck.limit} 抽，本次还需 ${totalDraw} 抽，无法继续。`,
+        `你今日「${this.typeName(type)}」已抽 ${limitCheck.used} 抽，每人上限 ${limitCheck.limit} 抽，本次还需 ${totalDraw} 抽，无法继续。`,
         false, { at: this.e.user_id }
       )
       return true
     }
 
-    // ---- 撤回时间 ----
-    const recallTime = getRecallTime(groupId)
-
     // ---- 单抽分支 ----
-    if (isSingle) {
-      const data = await this.runSingle(core)
+    if (drawResult.isSingle) {
+      const { data, recallTime } = drawResult
       const img = await this.screenshot(data)
-      if (!img) return false
-      await core.saveUser()
+      if (!img) {
+        await this.reply(`抽卡已完成，但结果图片生成失败：${data.name}（${data.star}星）`, false, { at: this.e.user_id })
+        return true
+      }
       const recallMsg = data.star >= 4 ? 0 : recallTime
       await this.reply(img, false, { recallMsg })
       return true
     }
 
     // ---- 十连 / 百连分支 ----
-    const imgs = []
-    let all5 = 0
-    let all4 = 0
+    const { batches, all5, all4, recallTime } = drawResult
 
-    for (let i = 1; i <= gachacishu; i++) {
-      const data = await this.runTen(core)
-      all5 += data.nowFive
-      all4 += data.nowFour
+    const imgs = []
+    for (const data of batches) {
       const img = await this.screenshot(data)
       if (img) imgs.push(img)
     }
-    await core.saveUser()
+
+    if (!imgs.length) {
+      await this.reply(`抽卡已完成，共 ${totalDraw} 抽，但结果图片均生成失败。`, false, { at: this.e.user_id })
+      return true
+    }
 
     const recallMsg = (all5 >= 2 || all4 >= 25) ? 0 : recallTime
 
@@ -98,26 +139,43 @@ export class torrent extends plugin {
   // ==================== 命令：定轨 ====================
 
   async weaponBing () {
-    const core = await new SingleGacha(this.e, { type: 'weapon' }).init()
-    const up5 = core.pool.up5
+    let result
+    try {
+      result = await withGachaLock(this.e, async lock => {
+        const core = await new SingleGacha(this.e, { type: 'weapon' }).init()
+        const up5 = core.pool.up5
+        if (!up5.length) return { ok: false }
 
-    if (!up5.length) {
+        const match = this.e.msg.replace(/^#*定轨\s*/, '').trim()
+        let target = match
+        if (target && !up5.includes(target)) return { ok: false, invalid: true, up5 }
+        if (!target) target = up5[0]
+
+        core.setDingTrack(target)
+        await core.saveUser(lock)
+        return { ok: true, up5, target }
+      })
+    } catch (err) {
+      if (err instanceof GachaLockTimeoutError) {
+        await this.reply('你的祈愿正在处理中，请稍后再试。', false, { at: this.e.user_id })
+        return true
+      }
+      logger.error('[waste-plugin] 定轨状态处理失败：', err)
+      await this.reply('定轨处理失败，请稍后重试。', false, { at: this.e.user_id })
+      return true
+    }
+
+    if (!result.ok && !result.invalid) {
       await this.reply('当前没有可定轨的武器。', false, { at: this.e.user_id })
       return true
     }
 
-    const match = this.e.msg.replace(/^#*定轨\s*/, '').trim()
-    let target = match
-    if (target && !up5.includes(target)) {
-      await this.reply(`当期UP武器为：${up5.join('、')}，请从中选择。`, false, { at: this.e.user_id })
+    if (result.invalid) {
+      await this.reply(`当期UP武器为：${result.up5.join('、')}，请从中选择。`, false, { at: this.e.user_id })
       return true
     }
-    if (!target) target = up5[0]
 
-    core.setDingTrack(target)
-    await core.saveUser()
-
-    const lines = up5.map(v => (v === target ? `[√] ${v}` : `[ ] ${v}`))
+    const lines = result.up5.map(v => (v === result.target ? `[√] ${v}` : `[ ] ${v}`))
     await this.reply(`定轨成功\n${lines.join('\n')}\n命定值已重置`, false, { at: this.e.user_id })
     return true
   }
@@ -213,28 +271,13 @@ export class torrent extends plugin {
   }
 
   cishu () {
-    const each = this.e.msg.replace(/(0|1|池|武器|十|抽|单|连|卡|奖|2|3)/g, '').trim()
-    const arr = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '百']
-    for (let i = 0; i <= 9; i++) {
-      if (each.includes(arr[i])) return i + 1
-    }
-    return 1
+    return parseTenPullBatches(this.e.msg)
   }
 
   parseType () {
     if (this.e.msg.includes('武器')) return 'weapon'
     if (this.e.msg.includes('常驻')) return 'permanent'
     return 'role'
-  }
-
-  /** 今日已抽数（角色池/武器池/常驻池分别统计） */
-  getTodayUsed (core, type) {
-    const t = core.user.today
-    if (!t) return 0
-    // today.num 记录角色/常驻总抽数，today.weaponNum 记录武器池抽数
-    // 原版只区分"粉球"（角色+常驻）和"蓝球"（常驻），此处按池子细分
-    if (type === 'weapon') return t.weaponNum || 0
-    return t.num || 0
   }
 
   /** 池子中文名 */
