@@ -60,13 +60,13 @@ const helpGroups = [
 export class Help extends plugin {
   constructor() {
     super({
-      name: '[waste-plugin]帮助',
+      name: '[waste-plugin]小佳佳帮助',
       dsc: 'waste-plugin 功能帮助',
       event: 'message',
       priority: 40,
       rule: [
         {
-          reg: '^#帮助$',
+          reg: '^#小佳佳帮助$',
           fnc: 'showHelp',
         },
       ],
